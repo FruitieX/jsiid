@@ -14,38 +14,47 @@ var createListener = function() {
     listener.listen(config.listenPort, config.listenAddr);
 };
 
-var handleLine = function(line, server) {
+var recvdIrcMsg = function(serverName, cmd, chan, nick, msg) {
+    console.log("recvdIrcMsg(" + serverName + ", " + cmd + ", " + chan + ", " + nick + ", " + msg + ")");
+};
+
+var sendIrcMsg = function(serverName, cmd, chan, nick, msg) {
+};
+
+var chans = {};
+var servers = {};
+
+var handleIrcLine = function(line, server, ircServer) {
     var tokens = line.split(' ');
 
     if (line === "")
         return;
 
-    console.log(server.name + ': ' + line);
-
+    //console.log(server.name + ': ' + line);
     if(tokens[0] === "PING") {
         console.log('got PING, sending PONG to ' + tokens[1].substr(1));
-        client.send("PONG " + tokens[1].substr(1));
+        ircServer.send("PONG " + tokens[1].substr(1));
     } else if (tokens[0][0] === ":") {
         var prefix = tokens[0].substr(1);
         var nick = prefix.substr(0, prefix.indexOf('!'));
         var cmd = tokens[1];
         var chan = tokens[2];
 
-        if(prefix === server.serverName) {
+        if(prefix === server.serverLongName) {
             tokens.shift(); tokens.shift(); tokens.shift();
-            console.log("Server msg: " + tokens.join(' '));
+            recvdIrcMsg(server.name, "message", server.name, server.name, tokens.join(' '));
         } else if(cmd === "PRIVMSG") {
             tokens.shift(); tokens.shift(); tokens.shift();
             var msg = tokens.join(' ').substr(1);
 
-            console.log("PRIVMSG " + chan + ': ' + nick + ': ' + msg);
+            recvdIrcMsg(server.name, "message", chan, nick, msg);
         } else if (cmd === "JOIN") {
-            console.log("JOIN " + chan + ': ' + nick);
+            recvdIrcMsg(server.name, "join", chan, nick, null);
         } else if (cmd === "PART") {
-            console.log("PART " + chan + ': ' + nick);
+            recvdIrcMsg(server.name, "part", chan, nick, null);
         } else if (cmd === "001") {
-            server.serverName = prefix;
-            console.log("serverName changed to " + server.serverName);
+            server.serverLongName = prefix;
+            console.log("serverLongName changed to " + server.serverLongName);
         } else {
             console.log("got unknown msg from " + nick + ": " + line);
         }
@@ -54,33 +63,33 @@ var handleLine = function(line, server) {
     }
 };
 
-var ircConnect = function(server) {
+var ircConnect = function(serverConfig) {
     var buffer = "";
 
-    var client = net.connect({
-        "port": server.port,
-        "host": server.address
+    var ircServer = net.connect({
+        "port": serverConfig.port,
+        "host": serverConfig.address
     }, function() {
         console.log('connected to irc server');
 
         var passString = "";
-        if(server.password)
-            passString = "PASS " + server.password + "\r\n";
+        if(serverConfig.password)
+            passString = "PASS " + serverConfig.password + "\r\n";
 
-        client.write(passString +
-                     "NICK " + (server.nick || config.nick) + "\r\n" +
-                     "USER " + (server.nick || config.nick) + " " +
-                     "localhost " + server.address + " :" +
-                     (server.nick || config.nick) + "\r\n");
+        ircServer.write(passString +
+                     "NICK " + (serverConfig.nick || config.nick) + "\r\n" +
+                     "USER " + (serverConfig.nick || config.nick) + " " +
+                     "localhost " + serverConfig.address + " :" +
+                     (serverConfig.nick || config.nick) + "\r\n");
 
     });
 
-    client.send = function(data) {
+    ircServer.send = function(data) {
         console.log("sending data: " + data);
-        client.write(data);
+        ircServer.write(data);
     };
 
-    client.on('data', function(data) {
+    ircServer.on('data', function(data) {
         buffer += data.toString('utf8');
         var lastNL = buffer.lastIndexOf('\n');
 
@@ -90,13 +99,17 @@ var ircConnect = function(server) {
             buffer = buffer.substr(lastNL + 1);
 
             for(var i = 0; i < recvdLines.length; i++) {
-                handleLine(recvdLines[i], server);
+                handleIrcLine(recvdLines[i], serverConfig, ircServer);
             }
         }
     });
-    client.on('end', function() {
+    ircServer.on('end', function() {
         console.log('disconnected from irc');
     });
+
+    ircServer.config = serverConfig;
+
+    ircServers[server.name] = ircServer;
 };
 
 createListener();
