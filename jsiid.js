@@ -14,15 +14,34 @@ var createListener = function() {
     listener.listen(config.listenPort, config.listenAddr);
 };
 
-var recvdIrcMsg = function(serverName, cmd, chan, nick, msg) {
-    console.log("recvdIrcMsg(" + serverName + ", " + cmd + ", " + chan + ", " + nick + ", " + msg + ")");
+var ircChans = {};
+var ircServers = {};
+
+var recvdIrcMsg = function(serverName, cmd, chan, nick, msgString) {
+    var chanLongName = serverName + ':' + chan;
+    if(!ircChans[chanLongName]) {
+        ircChans[chanLongName] = {
+            "messages": []
+        };
+    }
+
+    var msg = {
+        "server": serverName,
+        "cmd": cmd,
+        "chan": chan,
+        "nick": nick,
+        "message": msgString
+    };
+
+    ircChans[chanLongName].messages.push(msg);
+    if(ircChans[chanLongName].length > config.backlog)
+        ircChans[chanLongName].shift();
+
+    console.log("recvdIrcMsg(): " + JSON.stringify(msg));
 };
 
 var sendIrcMsg = function(serverName, cmd, chan, nick, msg) {
 };
-
-var chans = {};
-var servers = {};
 
 var handleIrcLine = function(line, server, ircServer) {
     var tokens = line.split(' ');
@@ -109,7 +128,7 @@ var ircConnect = function(serverConfig) {
 
     ircServer.config = serverConfig;
 
-    ircServers[server.name] = ircServer;
+    ircServers[serverConfig.name] = ircServer;
 };
 
 createListener();
