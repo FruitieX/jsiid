@@ -1,17 +1,52 @@
 var config = require(process.env.HOME + "/.jsiidConfig.js");
-console.log("read configuration:");
-console.log(config);
-
 var net = require("net");
+
+var clients = [];
 
 var createListener = function() {
     var listener = net.createServer(function (socket) {
-        socket.on('data', function(data) {
-            console.log('got data:' + data);
+        console.log("client connected.");
+        var buffer = "";
+
+        socket.on("data", function(data) {
+            console.log("got client data:" + data);
+            buffer += data.toString('utf8');
+            var lastNL = buffer.lastIndexOf('\n');
+            if(lastNL !== -1) {
+                var recvdLines = buffer.substr(0, lastNL + 1).split('\n');
+                buffer = buffer.substr(lastNL + 1);
+
+                for(var i = 0; i < recvdLines.length; i++) {
+                    var msg = JSON.parse(recvdLines[i]);
+                    if(msg.cmd === "backlog") {
+                        for(var j = 0; j < config.backlog && j < ircChans[msg.chan].messages.length; j++) {
+                            broadcastMsg([socket], JSON.stringify(ircChans[msg.chan].messages[j]));
+                        }
+                    } else {
+                        sendIrcMsg(recvdLines[i], socket);
+                    }
+                }
+            }
         });
+        socket.on("end", function() {
+            console.log("client disconnected.");
+            clients.splice(clients.indexOf(socket), 1);
+        });
+
+        clients.push(socket);
     });
 
     listener.listen(config.listenPort, config.listenAddr);
+};
+
+var broadcastMsg = function(clients, msg) {
+    // msg shouldn't contain any newlines, but let's be sure
+    msg.replace('\n', '');
+
+    for(var i = 0; i < clients.length; i++) {
+        clients[i].write(msg + '\n');
+    }
+    console.log("broadcastMsg(): " + msg);
 };
 
 var ircChans = {};
@@ -37,10 +72,19 @@ var recvdIrcMsg = function(serverName, cmd, chan, nick, msgString) {
     if(ircChans[chanLongName].length > config.backlog)
         ircChans[chanLongName].shift();
 
-    console.log("recvdIrcMsg(): " + JSON.stringify(msg));
+    broadcastMsg(clients, JSON.stringify(msg));
 };
 
-var sendIrcMsg = function(serverName, cmd, chan, nick, msg) {
+var sendIrcMsg = function(msg, client) {
+    console.log('sendIrcMsg(' + msg + ')');
+
+    var ircServer = ircServers[msg.server];
+    if(!ircServer)
+        broadcastMsg([client], {"error": "Server not found."})
+    else {
+        console.log('TODO');
+        //ircServer.write(msg.cmd.toUpperCase() + ' ' + 
+    }
 };
 
 var handleIrcLine = function(line, server, ircServer) {
@@ -71,6 +115,8 @@ var handleIrcLine = function(line, server, ircServer) {
             recvdIrcMsg(server.name, "join", chan, nick, null);
         } else if (cmd === "PART") {
             recvdIrcMsg(server.name, "part", chan, nick, null);
+        } else if (cmd === "QUIT") {
+            recvdIrcMsg(server.name, "quit", chan, nick, null);
         } else if (cmd === "001") {
             server.serverLongName = prefix;
             console.log("serverLongName changed to " + server.serverLongName);
