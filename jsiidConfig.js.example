@@ -1,0 +1,29 @@
+// jsiid sample config
+// edit, save as ~/.jsiidConfig.js
+
+var config = {};
+
+// how many lines to remember in each channel
+config.backlog = 100;
+
+// which address /port to listen on. comment out addr to listen on INADDR_ANY
+config.listenAddr = "127.0.0.1";
+config.listenPort = "6666";
+
+config.servers = [
+    {
+        "name": "oranges",          // required
+        "address": "oranges.com",   // default is localhost
+        "port": 1337,               // default is 6667
+        "password": "orangutan"     // defaults to no pw
+    },
+    {
+        "name": "fruits",
+        "address": "fruits.org",
+    },
+    {
+        "name": "bitlbee"
+    }
+];
+
+module.exports = config;
