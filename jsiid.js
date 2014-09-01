@@ -13,14 +13,17 @@ var createListener = function() {
             buffer += data.toString('utf8');
             var lastNL = buffer.lastIndexOf('\n');
             if(lastNL !== -1) {
-                var recvdLines = buffer.substr(0, lastNL + 1).split('\n');
+                var recvdLines = buffer.substr(0, lastNL).split('\n');
                 buffer = buffer.substr(lastNL + 1);
 
                 for(var i = 0; i < recvdLines.length; i++) {
+                    console.log('parsing ' + recvdLines[i]);
                     var msg = JSON.parse(recvdLines[i]);
                     if(msg.cmd === "backlog") {
-                        for(var j = 0; j < config.backlog && j < ircChans[msg.chan].messages.length; j++) {
-                            broadcastMsg([socket], JSON.stringify(ircChans[msg.chan].messages[j]));
+                        if(ircChans[msg.server + ':' + msg.chan]) {
+                            for(var j = 0; j < config.backlog && j < ircChans[msg.server + ':' + msg.chan].messages.length; j++) {
+                                broadcastMsg([socket], JSON.stringify(ircChans[msg.server + ':' + msg.chan].messages[j]));
+                            }
                         }
                     } else {
                         sendIrcMsg(recvdLines[i], socket);
@@ -56,7 +59,8 @@ var recvdIrcMsg = function(serverName, cmd, chan, nick, msgString) {
     var chanLongName = serverName + ':' + chan;
     if(!ircChans[chanLongName]) {
         ircChans[chanLongName] = {
-            "messages": []
+            "messages": [],
+            "nicks": [] // TODO
         };
     }
 
@@ -181,3 +185,8 @@ createListener();
 
 for(var i = 0; i < config.servers.length; i++)
     ircConnect(config.servers[i]);
+
+process.on('uncaughtException', function (err) {
+    console.error(err.stack);
+    console.log("ERROR! Node not exiting.");
+});
