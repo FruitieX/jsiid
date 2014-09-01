@@ -69,7 +69,6 @@ var ircChans = {};
 var ircServers = {};
 
 var recvdIrcMsg = function(serverName, cmd, chan, nick, msgString, noBroadcast) {
-    initNames(serverName, chan, true);
     var chanLongName = serverName + ':' + chan;
 
     var msg = {
@@ -80,9 +79,11 @@ var recvdIrcMsg = function(serverName, cmd, chan, nick, msgString, noBroadcast) 
         "message": msgString
     };
 
-    ircChans[chanLongName].messages.push(msg);
-    if(ircChans[chanLongName].length > config.backlog)
-        ircChans[chanLongName].shift();
+    if(chan) {
+        ircChans[chanLongName].messages.push(msg);
+        if(ircChans[chanLongName].length > config.backlog)
+            ircChans[chanLongName].shift();
+    }
 
     if(!noBroadcast)
         broadcastMsg(clients, JSON.stringify(msg));
@@ -97,8 +98,9 @@ var sendIrcMsg = function(msg, client) {
             broadcastMsg([client], JSON.stringify({"error": "Invalid recepient."}))
         } else if(!msg.message) {
             broadcastMsg([client], JSON.stringify({"error": "No message provided."}))
-        } else if (msg.message[0] !== '/' && msg.message.split()[0] !== '/say') {
+        } else if (msg.message[0] !== '/') {
             // add message to our backlog and send it
+            initChan(msg.server, msg.chan, true);
             recvdIrcMsg(msg.server, "message", msg.chan, msg.nick, msg.message, true);
             ircServer.send('PRIVMSG ' + msg.chan + ' :' + msg.message);
         } else {
@@ -107,7 +109,7 @@ var sendIrcMsg = function(msg, client) {
     }
 };
 
-var initNames = function(serverName, chan, requestNames) {
+var initChan = function(serverName, chan, requestNames) {
     var chanLongName = serverName + ':' + chan;
 
     if(!ircChans[chanLongName]) {
@@ -124,9 +126,6 @@ var initNames = function(serverName, chan, requestNames) {
 
 var handleIrcLine = function(line, server, ircServer) {
     var tokens = line.split(' ');
-
-    if (line === "")
-        return;
 
     //console.log(server.name + ': ' + line);
     if(tokens[0] === "PING") {
@@ -149,8 +148,7 @@ var handleIrcLine = function(line, server, ircServer) {
                 nicks = nicks.split(' ');
 
                 var chanLongName = server.name + ':' + chan;
-                console.log(chanLongName);
-                initNames(server.name, chan, false);
+                initChan(server.name, chan, false);
 
                 for(var i = 0; i < nicks.length; i++) {
                     ircChans[chanLongName].nicks[nicks[i]] = true;
@@ -164,6 +162,7 @@ var handleIrcLine = function(line, server, ircServer) {
                     "chan": msg.chan
                 }));
             } else {
+                initChan(server.name, server.name, false);
                 recvdIrcMsg(server.name, "message", server.name, server.name, msg);
             }
         } else if(cmd === "PRIVMSG") {
@@ -176,12 +175,19 @@ var handleIrcLine = function(line, server, ircServer) {
                 chan = nick;
             }
 
+            initChan(server.name, chan, true);
             recvdIrcMsg(server.name, "message", chan, nick, msg);
         } else if (cmd === "JOIN") {
+            initChan(server.name, chan, true);
             recvdIrcMsg(server.name, "join", chan, nick, null);
             ircChans[server.name + ':' + chan].nicks[nick] = true;
-        } else if (cmd === "PART" || cmd === "QUIT") {
+        } else if (cmd === "PART") {
+            initChan(server.name, chan, true);
             recvdIrcMsg(server.name, "part", chan, nick, null);
+            delete(ircChans[server.name + ':' + chan].nicks[nick]);
+        } else if (cmd === "QUIT") {
+            initChan(server.name, chan, false);
+            recvdIrcMsg(server.name, "quit", null, nick, null);
             delete(ircChans[server.name + ':' + chan].nicks[nick]);
         } else if (cmd === "001") {
             server.serverLongName = prefix;
@@ -221,7 +227,6 @@ var ircConnect = function(serverConfig) {
     };
 
     ircServer.on('data', function(data) {
-        console.log('irc server sent ' + data.toString('utf8'));
         buffer += data.toString('utf8');
         var lastNL = buffer.lastIndexOf('\n');
 
@@ -231,7 +236,10 @@ var ircConnect = function(serverConfig) {
             buffer = buffer.substr(lastNL + 1);
 
             for(var i = 0; i < recvdLines.length; i++) {
-                handleIrcLine(recvdLines[i], serverConfig, ircServer);
+                if(recvdLines[i] !== "") {
+                    console.log('irc server sent ' + recvdLines[i]);
+                    handleIrcLine(recvdLines[i], serverConfig, ircServer);
+                }
             }
         }
     });
