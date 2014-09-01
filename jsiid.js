@@ -60,7 +60,7 @@ var recvdIrcMsg = function(serverName, cmd, chan, nick, msgString, noBroadcast) 
     if(!ircChans[chanLongName]) {
         ircChans[chanLongName] = {
             "messages": [],
-            "nicks": [] // TODO
+            "nicks": {}
         };
     }
 
@@ -119,13 +119,17 @@ var handleIrcLine = function(line, server, ircServer) {
             tokens.shift(); tokens.shift(); tokens.shift();
             var msg = tokens.join(' ').substr(1);
 
+            // query message
+            if(chan === config.nick) {
+                chan = nick;
+            }
             recvdIrcMsg(server.name, "message", chan, nick, msg);
         } else if (cmd === "JOIN") {
             recvdIrcMsg(server.name, "join", chan, nick, null);
-        } else if (cmd === "PART") {
+            ircChans[server.name + ':' + chan].nicks[nick] = true;
+        } else if (cmd === "PART" || cmd === "QUIT") {
             recvdIrcMsg(server.name, "part", chan, nick, null);
-        } else if (cmd === "QUIT") {
-            recvdIrcMsg(server.name, "quit", chan, nick, null);
+            delete(ircChans[server.name + ':' + chan].nicks[nick]);
         } else if (cmd === "001") {
             server.serverLongName = prefix;
             console.log("serverLongName changed to " + server.serverLongName);
