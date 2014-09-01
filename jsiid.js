@@ -81,8 +81,8 @@ var recvdIrcMsg = function(serverName, cmd, chan, nick, msgString, noBroadcast) 
 
     if(chan) {
         ircChans[chanLongName].messages.push(msg);
-        if(ircChans[chanLongName].length > config.backlog)
-            ircChans[chanLongName].shift();
+        if(ircChans[chanLongName].messages.length > config.backlog)
+            ircChans[chanLongName].messages.shift();
     }
 
     if(!noBroadcast)
