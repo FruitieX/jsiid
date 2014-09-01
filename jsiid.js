@@ -43,6 +43,10 @@ var createListener = function() {
             console.log("client disconnected.");
             clients.splice(clients.indexOf(socket), 1);
         });
+        socket.on("close", function() {
+            console.log("client disconnected.");
+            clients.splice(clients.indexOf(socket), 1);
+        });
 
         clients.push(socket);
     });
@@ -65,13 +69,8 @@ var ircChans = {};
 var ircServers = {};
 
 var recvdIrcMsg = function(serverName, cmd, chan, nick, msgString, noBroadcast) {
+    initNames(serverName, chan, true);
     var chanLongName = serverName + ':' + chan;
-    if(!ircChans[chanLongName]) {
-        ircChans[chanLongName] = {
-            "messages": [],
-            "nicks": {}
-        };
-    }
 
     var msg = {
         "server": serverName,
@@ -98,10 +97,28 @@ var sendIrcMsg = function(msg, client) {
             broadcastMsg([client], JSON.stringify({"error": "Invalid recepient."}))
         } else if(!msg.message) {
             broadcastMsg([client], JSON.stringify({"error": "No message provided."}))
-        } else {
+        } else if (msg.message[0] !== '/' && msg.message.split()[0] !== '/say') {
+            // add message to our backlog and send it
             recvdIrcMsg(msg.server, "message", msg.chan, msg.nick, msg.message, true);
             ircServer.send('PRIVMSG ' + msg.chan + ' :' + msg.message);
+        } else {
+            ircServer.send(msg.message.substr(1));
         }
+    }
+};
+
+var initNames = function(serverName, chan, requestNames) {
+    var chanLongName = serverName + ':' + chan;
+
+    if(!ircChans[chanLongName]) {
+        ircChans[chanLongName] = {
+            "messages": [],
+            "nicks": {},
+            "nicksRequested": true
+        };
+
+        if(requestNames)
+            ircServers[serverName].send('NAMES ' + chan);
     }
 };
 
@@ -123,8 +140,34 @@ var handleIrcLine = function(line, server, ircServer) {
 
         if(prefix === server.serverLongName) {
             tokens.shift(); tokens.shift(); tokens.shift();
-            recvdIrcMsg(server.name, "message", server.name, server.name, tokens.join(' '));
+            var msg = tokens.join(' ');
+            // nicklist
+            if (cmd === "353") {
+                chan = msg.split(':')[0];
+                chan = chan.split(' ')[1];
+                var nicks = msg.split(':')[1];
+                nicks = nicks.split(' ');
+
+                var chanLongName = server.name + ':' + chan;
+                console.log(chanLongName);
+                initNames(server.name, chan, false);
+
+                for(var i = 0; i < nicks.length; i++) {
+                    ircChans[chanLongName].nicks[nicks[i]] = true;
+                }
+
+                // send the nicklist
+                broadcastMsg(clients, JSON.stringify({
+                    "cmd": "nicklist",
+                    "nicks": Object.keys(ircChans[chanLongName].nicks),
+                    "server": msg.server,
+                    "chan": msg.chan
+                }));
+            } else {
+                recvdIrcMsg(server.name, "message", server.name, server.name, msg);
+            }
         } else if(cmd === "PRIVMSG") {
+
             tokens.shift(); tokens.shift(); tokens.shift();
             var msg = tokens.join(' ').substr(1);
 
@@ -132,6 +175,7 @@ var handleIrcLine = function(line, server, ircServer) {
             if(chan === config.nick) {
                 chan = nick;
             }
+
             recvdIrcMsg(server.name, "message", chan, nick, msg);
         } else if (cmd === "JOIN") {
             recvdIrcMsg(server.name, "join", chan, nick, null);
