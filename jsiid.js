@@ -17,7 +17,6 @@ var createListener = function() {
                 buffer = buffer.substr(lastNL + 1);
 
                 for(var i = 0; i < recvdLines.length; i++) {
-                    console.log('parsing ' + recvdLines[i]);
                     var msg = JSON.parse(recvdLines[i]);
                     if(msg.cmd === "backlog") {
                         if(ircChans[msg.server + ':' + msg.chan]) {
@@ -26,7 +25,7 @@ var createListener = function() {
                             }
                         }
                     } else {
-                        sendIrcMsg(recvdLines[i], socket);
+                        sendIrcMsg(msg, socket);
                     }
                 }
             }
@@ -44,7 +43,8 @@ var createListener = function() {
 
 var broadcastMsg = function(clients, msg) {
     // msg shouldn't contain any newlines, but let's be sure
-    msg.replace('\n', '');
+    if(msg.message)
+        msg.message.replace('\n', '');
 
     for(var i = 0; i < clients.length; i++) {
         clients[i].write(msg + '\n');
@@ -80,14 +80,21 @@ var recvdIrcMsg = function(serverName, cmd, chan, nick, msgString) {
 };
 
 var sendIrcMsg = function(msg, client) {
-    console.log('sendIrcMsg(' + msg + ')');
-
     var ircServer = ircServers[msg.server];
     if(!ircServer)
-        broadcastMsg([client], {"error": "Server not found."})
+        broadcastMsg([client], JSON.stringify({"error": "Server not found."}))
     else {
-        console.log('TODO');
-        //ircServer.write(msg.cmd.toUpperCase() + ' ' + 
+        var recepient = msg.chan;
+        if(!msg.chan)
+            recepient = msg.nick;
+
+        if(!recepient) {
+            broadcastMsg([client], JSON.stringify({"error": "Invalid recepient."}))
+        } else if(!msg.message) {
+            broadcastMsg([client], JSON.stringify({"error": "No message provided."}))
+        } else {
+            ircServer.write('PRIVMSG ' + msg.chan + ' :' + msg.message + '\n');
+        }
     }
 };
 
@@ -159,6 +166,7 @@ var ircConnect = function(serverConfig) {
     };
 
     ircServer.on('data', function(data) {
+        console.log('irc server sent ' + data.toString('utf8'));
         buffer += data.toString('utf8');
         var lastNL = buffer.lastIndexOf('\n');
 
