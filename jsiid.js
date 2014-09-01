@@ -55,7 +55,7 @@ var broadcastMsg = function(clients, msg) {
 var ircChans = {};
 var ircServers = {};
 
-var recvdIrcMsg = function(serverName, cmd, chan, nick, msgString) {
+var recvdIrcMsg = function(serverName, cmd, chan, nick, msgString, noBroadcast) {
     var chanLongName = serverName + ':' + chan;
     if(!ircChans[chanLongName]) {
         ircChans[chanLongName] = {
@@ -76,7 +76,8 @@ var recvdIrcMsg = function(serverName, cmd, chan, nick, msgString) {
     if(ircChans[chanLongName].length > config.backlog)
         ircChans[chanLongName].shift();
 
-    broadcastMsg(clients, JSON.stringify(msg));
+    if(!noBroadcast)
+        broadcastMsg(clients, JSON.stringify(msg));
 };
 
 var sendIrcMsg = function(msg, client) {
@@ -84,15 +85,12 @@ var sendIrcMsg = function(msg, client) {
     if(!ircServer)
         broadcastMsg([client], JSON.stringify({"error": "Server not found."}))
     else {
-        var recepient = msg.chan;
-        if(!msg.chan)
-            recepient = msg.nick;
-
-        if(!recepient) {
+        if(!msg.chan) {
             broadcastMsg([client], JSON.stringify({"error": "Invalid recepient."}))
         } else if(!msg.message) {
             broadcastMsg([client], JSON.stringify({"error": "No message provided."}))
         } else {
+            recvdIrcMsg(msg.server, "message", msg.chan, msg.nick, msg.message, true);
             ircServer.write('PRIVMSG ' + msg.chan + ' :' + msg.message + '\n');
         }
     }
