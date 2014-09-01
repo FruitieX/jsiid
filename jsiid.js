@@ -20,6 +20,15 @@ var createListener = function() {
                     var msg = JSON.parse(recvdLines[i]);
                     if(msg.cmd === "backlog") {
                         if(ircChans[msg.server + ':' + msg.chan]) {
+                            // first send the nicklist
+                            broadcastMsg([socket], JSON.stringify({
+                                "cmd": "nicklist",
+                                "nicks": Object.keys(ircChans[msg.server + ':' + msg.chan].nicks),
+                                "server": msg.server,
+                                "chan": msg.chan
+                            }));
+
+                            // then send backlog
                             for(var j = 0; j < config.backlog && j < ircChans[msg.server + ':' + msg.chan].messages.length; j++) {
                                 broadcastMsg([socket], JSON.stringify(ircChans[msg.server + ':' + msg.chan].messages[j]));
                             }
@@ -91,7 +100,7 @@ var sendIrcMsg = function(msg, client) {
             broadcastMsg([client], JSON.stringify({"error": "No message provided."}))
         } else {
             recvdIrcMsg(msg.server, "message", msg.chan, msg.nick, msg.message, true);
-            ircServer.write('PRIVMSG ' + msg.chan + ' :' + msg.message + '\n');
+            ircServer.send('PRIVMSG ' + msg.chan + ' :' + msg.message);
         }
     }
 };
@@ -164,7 +173,7 @@ var ircConnect = function(serverConfig) {
 
     ircServer.send = function(data) {
         console.log("sending data: " + data);
-        ircServer.write(data);
+        ircServer.write(data + '\r\n');
     };
 
     ircServer.on('data', function(data) {
