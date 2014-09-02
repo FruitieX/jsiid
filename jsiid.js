@@ -3,6 +3,56 @@ var net = require("net");
 
 var clients = [];
 
+var handleClientMessage = function(msg) {
+    if(msg.cmd === "backlog") {
+        if(ircChans[msg.server + ':' + msg.chan]) {
+            // first send the nicklist
+            broadcastMsg([socket], JSON.stringify({
+                "cmd": "nicklist",
+                "nicks": Object.keys(ircChans[msg.server + ':' + msg.chan].nicks),
+                "server": msg.server,
+                "chan": msg.chan
+            }));
+
+            // then send backlog
+            for(var j = 0; j < config.backlog && j < ircChans[msg.server + ':' + msg.chan].messages.length; j++) {
+                broadcastMsg([socket], JSON.stringify(ircChans[msg.server + ':' + msg.chan].messages[j]));
+            }
+        }
+    } else if (msg.cmd === "search") {
+        if(ircChans[msg.server + ':' + msg.chan]) {
+            // send search results
+            for(var j = 0; j < config.backlog && j < ircChans[msg.server + ':' + msg.chan].messages.length; j++) {
+                if(ircChans[msg.server + ':' + msg.chan].messages[j].match(new RegExp(msg.searchRE))) {
+                    if(msg.skip > 0) {
+                        msg.skip--;
+                        continue;
+                    }
+
+                    var origMsg = ircChans[msg.server + ':' + msg.chan].messages[j];
+                    var results = {
+                        "cmd": "searchResults",
+                        "server": origMsg.server,
+                        "chan": origMsg.chan,
+                        "message": origMsg.message,
+                        "nick": origMsg.nick
+                    }
+
+                    broadcastMsg([socket], JSON.stringify(results));
+                    return;
+                }
+            }
+        }
+    } else {
+        sendIrcMsg(msg, socket);
+    }
+};
+
+var handleClientDisconnect = function(socket) {
+    console.log("client disconnected.");
+    clients.splice(clients.indexOf(socket), 1);
+};
+
 var createListener = function() {
     var listener = net.createServer(function (socket) {
         console.log("client connected.");
@@ -18,58 +68,15 @@ var createListener = function() {
 
                 for(var i = 0; i < recvdLines.length; i++) {
                     var msg = JSON.parse(recvdLines[i]);
-                    if(msg.cmd === "backlog") {
-                        if(ircChans[msg.server + ':' + msg.chan]) {
-                            // first send the nicklist
-                            broadcastMsg([socket], JSON.stringify({
-                                "cmd": "nicklist",
-                                "nicks": Object.keys(ircChans[msg.server + ':' + msg.chan].nicks),
-                                "server": msg.server,
-                                "chan": msg.chan
-                            }));
-
-                            // then send backlog
-                            for(var j = 0; j < config.backlog && j < ircChans[msg.server + ':' + msg.chan].messages.length; j++) {
-                                broadcastMsg([socket], JSON.stringify(ircChans[msg.server + ':' + msg.chan].messages[j]));
-                            }
-                        }
-                    } else if (msg.cmd === "search") {
-                        if(ircChans[msg.server + ':' + msg.chan]) {
-                            // send search results
-                            for(var j = 0; j < config.backlog && j < ircChans[msg.server + ':' + msg.chan].messages.length; j++) {
-                                if(ircChans[msg.server + ':' + msg.chan].messages[j].match(new RegExp(msg.searchRE))) {
-                                    if(msg.skip > 0) {
-                                        msg.skip--;
-                                        continue;
-                                    }
-
-                                    var origMsg = ircChans[msg.server + ':' + msg.chan].messages[j];
-                                    var results = {
-                                        "cmd": "searchResults",
-                                        "server": origMsg.server,
-                                        "chan": origMsg.chan,
-                                        "message": origMsg.message,
-                                        "nick": origMsg.nick
-                                    }
-
-                                    broadcastMsg([socket], JSON.stringify(results));
-                                    return;
-                                }
-                            }
-                        }
-                    } else {
-                        sendIrcMsg(msg, socket);
-                    }
+                    handleClientMessage(msg);
                 }
             }
         });
         socket.on("end", function() {
-            console.log("client disconnected.");
-            clients.splice(clients.indexOf(socket), 1);
+            handleClientDisconnect(socket);
         });
         socket.on("close", function() {
-            console.log("client disconnected.");
-            clients.splice(clients.indexOf(socket), 1);
+            handleClientDisconnect(socket);
         });
 
         clients.push(socket);
@@ -190,7 +197,6 @@ var handleIrcLine = function(line, server, ircServer) {
                 recvdIrcMsg(server.name, "message", server.name, server.name, msg);
             }
         } else if(cmd === "PRIVMSG") {
-
             tokens.shift(); tokens.shift(); tokens.shift();
             var msg = tokens.join(' ').substr(1);
 
