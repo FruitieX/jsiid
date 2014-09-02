@@ -33,6 +33,30 @@ var createListener = function() {
                                 broadcastMsg([socket], JSON.stringify(ircChans[msg.server + ':' + msg.chan].messages[j]));
                             }
                         }
+                    } else if (msg.cmd === "search") {
+                        if(ircChans[msg.server + ':' + msg.chan]) {
+                            // send search results
+                            for(var j = 0; j < config.backlog && j < ircChans[msg.server + ':' + msg.chan].messages.length; j++) {
+                                if(ircChans[msg.server + ':' + msg.chan].messages[j].match(new RegExp(msg.searchRE))) {
+                                    if(msg.skip > 0) {
+                                        msg.skip--;
+                                        continue;
+                                    }
+
+                                    var origMsg = ircChans[msg.server + ':' + msg.chan].messages[j];
+                                    var results = {
+                                        "cmd": "searchResults",
+                                        "server": origMsg.server,
+                                        "chan": origMsg.chan,
+                                        "message": origMsg.message,
+                                        "nick": origMsg.nick
+                                    }
+
+                                    broadcastMsg([socket], JSON.stringify(results));
+                                    return;
+                                }
+                            }
+                        }
                     } else {
                         sendIrcMsg(msg, socket);
                     }
