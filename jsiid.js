@@ -23,6 +23,7 @@ var handleClientMessage = function(msg, socket) {
     } else if (msg.cmd === "search") {
         if(ircChans[chanLongName]) {
             // send search results
+            var id = 0;
             for(var i = ircChans[chanLongName].messages.length - 1; i >= 0; i--) {
                 var origMsg = ircChans[chanLongName].messages[i];
                 if(origMsg.message &&
@@ -33,16 +34,25 @@ var handleClientMessage = function(msg, socket) {
                         continue;
                     }
 
+                    var message = origMsg.message;
+                    if(msg.onlyMatching) {
+                        message = message.match(new RegExp(msg.searchRE))[0];
+                    }
+
                     var results = {
                         "cmd": "searchResults",
+                        "type": msg.type,
+                        "id": id++,
                         "server": origMsg.server,
                         "chan": origMsg.chan,
-                        "message": origMsg.message,
+                        "message": message,
                         "nick": origMsg.nick
                     }
 
                     broadcastMsg([socket], JSON.stringify(results));
-                    return;
+
+                    if(msg.firstMatchOnly)
+                        return;
                 }
             }
         }
