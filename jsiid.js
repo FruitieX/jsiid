@@ -231,7 +231,7 @@ var handleIrcLine = function(line, server, ircServer) {
             recvdIrcMsg(server.name, "message", chan, nick, msg);
         } else if (cmd === "JOIN") {
             initChan(server.name, chan, true);
-            if(nick === (server.nick || config.myNick)) {
+            if(nick !== (server.nick || config.myNick)) {
                 recvdIrcMsg(server.name, "join", chan, nick, null);
                 ircChans[chanLongName].nicks[nick] = true;
             }
