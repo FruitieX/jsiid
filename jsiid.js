@@ -90,7 +90,7 @@ var createListener = function() {
             }
         });
         socket.on("end", function() {
-            handleClientDisconnect(socket);
+            socket.end();
         });
         socket.on("close", function() {
             handleClientDisconnect(socket);
@@ -240,8 +240,10 @@ var handleIrcLine = function(line, server, ircServer) {
             recvdIrcMsg(server.name, "message", chan, nick, msg);
         } else if (cmd === "JOIN") {
             initChan(server.name, chan, true);
-            recvdIrcMsg(server.name, "join", chan, nick, null);
-            ircChans[server.name + ':' + chan].nicks[nick] = true;
+            if(nick === (server.nick || config.myNick)) {
+                recvdIrcMsg(server.name, "join", chan, nick, null);
+                ircChans[server.name + ':' + chan].nicks[nick] = true;
+            }
         } else if (cmd === "PART") {
             initChan(server.name, chan, true);
             recvdIrcMsg(server.name, "part", chan, nick, null);
