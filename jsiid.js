@@ -287,7 +287,16 @@ var ircConnect = function(serverConfig) {
         }
     });
     ircServer.on('end', function() {
-        console.log('disconnected from irc');
+        console.log('disconnected from irc, reconnecting...');
+        setTimeout(function() {
+            ircConnect(serverconfig);
+        }, config.reconnectDelay);
+    });
+    ircServer.on('close', function() {
+        console.log('connection to irc closed, reconnecting...');
+        setTimeout(function() {
+            ircConnect(serverconfig);
+        }, config.reconnectDelay);
     });
 
     ircServer.config = serverConfig;
