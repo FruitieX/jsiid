@@ -5,6 +5,7 @@ var clients = [];
 
 var handleClientMessage = function(msg, socket) {
     var chanLongName = msg.server + ':' + msg.chan;
+    chanLongName = chanLongName.toLowerCase();
     if(msg.cmd === "backlog") {
         // get nicklist for chan if we already haven't
         initChan(msg.server, msg.chan, true);
@@ -118,6 +119,7 @@ var ircServers = {};
 
 var recvdIrcMsg = function(serverName, cmd, chan, nick, msgString, noBroadcast) {
     var chanLongName = serverName + ':' + chan;
+    chanLongName = chanLongName.toLowerCase();
 
     var msg = {
         "server": serverName,
@@ -160,6 +162,7 @@ var sendIrcMsg = function(msg, client) {
 
 var initChan = function(serverName, chan) {
     var chanLongName = serverName + ':' + chan;
+    chanLongName = chanLongName.toLowerCase();
 
     if(!ircChans[chanLongName]) {
         ircChans[chanLongName] = {
@@ -183,6 +186,9 @@ var handleIrcLine = function(line, server, ircServer) {
         var chan = tokens[2];
         chan = chan.replace(':', '');
 
+        var chanLongName = server.name + ':' + chan;
+        chanLongName = chanLongName.toLowerCase();
+
         if(prefix === server.serverLongName) {
             tokens.shift(); tokens.shift(); tokens.shift();
             var msg = tokens.join(' ');
@@ -193,7 +199,8 @@ var handleIrcLine = function(line, server, ircServer) {
                 var nicks = msg.split(':')[1];
                 nicks = nicks.split(' ');
 
-                var chanLongName = server.name + ':' + chan;
+                chanLongName = server.name + ':' + chan;
+                chanLongName = chanLongName.toLowerCase();
                 initChan(server.name, chan, false);
 
                 for(var i = 0; i < nicks.length; i++) {
@@ -226,12 +233,12 @@ var handleIrcLine = function(line, server, ircServer) {
             initChan(server.name, chan, true);
             if(nick === (server.nick || config.myNick)) {
                 recvdIrcMsg(server.name, "join", chan, nick, null);
-                ircChans[server.name + ':' + chan].nicks[nick] = true;
+                ircChans[chanLongName].nicks[nick] = true;
             }
         } else if (cmd === "PART") {
             initChan(server.name, chan, true);
             recvdIrcMsg(server.name, "part", chan, nick, null);
-            delete(ircChans[server.name + ':' + chan].nicks[nick]);
+            delete(ircChans[chanLongName].nicks[nick]);
         } else if (cmd === "QUIT") {
             for(var key in ircChans) {
                 for(var chanNick in ircChans[key].nicks) {
