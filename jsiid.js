@@ -197,6 +197,7 @@ var handleIrcLine = function(line, server, ircServer) {
         var nick = prefix.substr(0, prefix.indexOf('!'));
         var cmd = tokens[1];
         var chan = tokens[2];
+        chan = chan.replace(':', '');
 
         if(prefix === server.serverLongName) {
             tokens.shift(); tokens.shift(); tokens.shift();
