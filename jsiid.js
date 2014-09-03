@@ -3,33 +3,36 @@ var net = require("net");
 
 var clients = [];
 
-var handleClientMessage = function(msg) {
+var handleClientMessage = function(msg, socket) {
+    var chanLongName = msg.server + ':' + msg.chan;
     if(msg.cmd === "backlog") {
-        if(ircChans[msg.server + ':' + msg.chan]) {
+        if(ircChans[chanLongName]) {
             // first send the nicklist
             broadcastMsg([socket], JSON.stringify({
                 "cmd": "nicklist",
-                "nicks": Object.keys(ircChans[msg.server + ':' + msg.chan].nicks),
+                "nicks": Object.keys(ircChans[chanLongName].nicks),
                 "server": msg.server,
                 "chan": msg.chan
             }));
 
             // then send backlog
-            for(var j = 0; j < config.backlog && j < ircChans[msg.server + ':' + msg.chan].messages.length; j++) {
-                broadcastMsg([socket], JSON.stringify(ircChans[msg.server + ':' + msg.chan].messages[j]));
+            for(var i = 0; i < config.backlog && i < ircChans[chanLongName].messages.length; i++) {
+                broadcastMsg([socket], JSON.stringify(ircChans[chanLongName].messages[i]));
             }
         }
     } else if (msg.cmd === "search") {
-        if(ircChans[msg.server + ':' + msg.chan]) {
+        if(ircChans[chanLongName]) {
             // send search results
-            for(var j = 0; j < config.backlog && j < ircChans[msg.server + ':' + msg.chan].messages.length; j++) {
-                if(ircChans[msg.server + ':' + msg.chan].messages[j].match(new RegExp(msg.searchRE))) {
+            for(var i = ircChans[chanLongName].messages.length - 1; i >= 0; i--) {
+                var origMsg = ircChans[chanLongName].messages[i];
+                if(origMsg.message &&
+                   origMsg.message.match(new RegExp(msg.searchRE))) {
+
                     if(msg.skip > 0) {
                         msg.skip--;
                         continue;
                     }
 
-                    var origMsg = ircChans[msg.server + ':' + msg.chan].messages[j];
                     var results = {
                         "cmd": "searchResults",
                         "server": origMsg.server,
@@ -68,7 +71,7 @@ var createListener = function() {
 
                 for(var i = 0; i < recvdLines.length; i++) {
                     var msg = JSON.parse(recvdLines[i]);
-                    handleClientMessage(msg);
+                    handleClientMessage(msg, socket);
                 }
             }
         });
