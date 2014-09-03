@@ -287,15 +287,25 @@ var ircConnect = function(serverConfig) {
         }
     });
     ircServer.on('end', function() {
-        console.log('disconnected from irc, reconnecting...');
+        console.log(serverConfig.name + ': disconnected from irc, reconnecting...');
+        broadcastMsg(clients, {
+            nick: '!',
+            message: serverConfig.name + ': Disconnected from irc, reconnecting...',
+            broadcast: true
+        });
         setTimeout(function() {
-            ircConnect(serverconfig);
+            ircConnect(serverConfig);
         }, config.reconnectDelay);
     });
     ircServer.on('close', function() {
-        console.log('connection to irc closed, reconnecting...');
+        console.log(serverConfig.name + ': connection to irc closed, reconnecting...');
+        broadcastMsg(clients, JSON.stringify({
+            nick: '!',
+            message: serverConfig.name + ': Connection to irc closed, reconnecting...',
+            broadcast: true
+        }));
         setTimeout(function() {
-            ircConnect(serverconfig);
+            ircConnect(serverConfig);
         }, config.reconnectDelay);
     });
 
