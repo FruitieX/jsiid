@@ -158,6 +158,18 @@ var sendIrcMsg = function(msg, client) {
     }
 };
 
+var deferredRequestNames = function(serverName, chan) {
+    var server = ircServers[serverName];
+    server.chanNamesRequests.push(chan);
+
+    clearTimeout(server.namesRequestTimeout);
+    server.namesRequestTimeout = setTimeout(function() {
+        server.namesRequestTimeout = null;
+        server.send('NAMES ' + server.chanNamesRequests.join(','));
+        server.chanNamesRequests = [];
+    }, config.namesRequestDelay);
+};
+
 var initChan = function(serverName, chan, requestNames) {
     var chanLongName = serverName + ':' + chan;
 
@@ -165,11 +177,11 @@ var initChan = function(serverName, chan, requestNames) {
         ircChans[chanLongName] = {
             "messages": [],
             "nicks": {},
-            "nicksRequested": true
+            "nicksRequested": true,
         };
 
         if(requestNames)
-            ircServers[serverName].send('NAMES ' + chan);
+            deferredRequestNames(serverName, chan);
     }
 };
 
@@ -256,6 +268,11 @@ var ircConnect = function(serverConfig) {
         "host": serverConfig.address
     }, function() {
         console.log('connected to irc server');
+        broadcastMsg(clients, {
+            nick: '!',
+            message: serverConfig.name + ': Connected to IRC.',
+            broadcast: true
+        });
 
         var passString = "";
         if(serverConfig.password)
@@ -270,7 +287,7 @@ var ircConnect = function(serverConfig) {
     });
 
     ircServer.send = function(data) {
-        console.log("sending data: " + data);
+        console.log("sending data to IRC: " + data);
         ircServer.write(data + '\r\n');
     };
 
@@ -284,7 +301,7 @@ var ircConnect = function(serverConfig) {
             buffer = buffer.substr(lastNL + 1);
 
             for(var i = 0; i < recvdLines.length; i++) {
-                if(recvdLines[i] !== "") {
+                if(recvdLines[i] !== '') {
                     console.log('irc server sent ' + recvdLines[i]);
                     handleIrcLine(recvdLines[i], serverConfig, ircServer);
                 }
@@ -315,6 +332,8 @@ var ircConnect = function(serverConfig) {
     });
 
     ircServer.config = serverConfig;
+    ircServer.chanNamesRequests = [];
+    ircServer.namesRequestTimeout = null;
 
     ircServers[serverConfig.name] = ircServer;
 };

@@ -11,6 +11,9 @@ config.backlog = 100;
 // time between reconnect attempts
 config.reconnectDelay = 5000;
 
+// time used for accumulating which chans to request nicklists on
+config.namesRequestDelay = 5000;
+
 // which address /port to listen on. comment out addr to listen on INADDR_ANY
 config.listenAddr = "127.0.0.1";
 config.listenPort = "6666";
