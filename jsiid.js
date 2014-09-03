@@ -6,8 +6,16 @@ var clients = [];
 var handleClientMessage = function(msg, socket) {
     var chanLongName = msg.server + ':' + msg.chan;
     if(msg.cmd === "backlog") {
+        // get nicklist for chan if we already haven't
+        initChan(msg.server, msg.chan, true);
+
         if(ircChans[chanLongName]) {
-            // first send the nicklist
+            // send backlog
+            for(var i = 0; i < config.backlog && i < ircChans[chanLongName].messages.length; i++) {
+                broadcastMsg([socket], JSON.stringify(ircChans[chanLongName].messages[i]));
+            }
+
+            // send the nicklist
             broadcastMsg([socket], JSON.stringify({
                 "cmd": "nicklist",
                 "nicks": Object.keys(ircChans[chanLongName].nicks),
@@ -15,10 +23,6 @@ var handleClientMessage = function(msg, socket) {
                 "chan": msg.chan
             }));
 
-            // then send backlog
-            for(var i = 0; i < config.backlog && i < ircChans[chanLongName].messages.length; i++) {
-                broadcastMsg([socket], JSON.stringify(ircChans[chanLongName].messages[i]));
-            }
         }
     } else if (msg.cmd === "search") {
         if(ircChans[chanLongName]) {
@@ -143,8 +147,9 @@ var sendIrcMsg = function(msg, client) {
         } else if(!msg.message) {
             broadcastMsg([client], JSON.stringify({"error": "No message provided."}))
         } else if (msg.message[0] !== '/') {
-            // add message to our backlog and send it
             initChan(msg.server, msg.chan, true);
+
+            // add message to our backlog and send it
             recvdIrcMsg(msg.server, "message", msg.chan, msg.nick, msg.message, true);
             ircServer.send('PRIVMSG ' + msg.chan + ' :' + msg.message);
         } else {
