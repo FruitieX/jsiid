@@ -1,6 +1,6 @@
 jsiid
 =====
-Converts IRC messages to JSON.
+Converts IRC messages to JSON and vice versa.
 
 Examples
 ========
