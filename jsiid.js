@@ -158,30 +158,14 @@ var sendIrcMsg = function(msg, client) {
     }
 };
 
-var deferredRequestNames = function(serverName, chan) {
-    var server = ircServers[serverName];
-    server.chanNamesRequests.push(chan);
-
-    clearTimeout(server.namesRequestTimeout);
-    server.namesRequestTimeout = setTimeout(function() {
-        server.namesRequestTimeout = null;
-        server.send('NAMES ' + server.chanNamesRequests.join(','));
-        server.chanNamesRequests = [];
-    }, config.namesRequestDelay);
-};
-
-var initChan = function(serverName, chan, requestNames) {
+var initChan = function(serverName, chan) {
     var chanLongName = serverName + ':' + chan;
 
     if(!ircChans[chanLongName]) {
         ircChans[chanLongName] = {
             "messages": [],
-            "nicks": {},
-            "nicksRequested": true,
+            "nicks": {}
         };
-
-        if(requestNames)
-            deferredRequestNames(serverName, chan);
     }
 };
 
