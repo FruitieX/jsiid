@@ -267,11 +267,11 @@ var ircConnect = function(serverConfig) {
         "host": serverConfig.address
     }, function() {
         console.log('connected to irc server');
-        broadcastMsg(clients, {
+        broadcastMsg(clients, JSON.stringify({
             nick: '!',
             message: serverConfig.name + ': Connected to IRC.',
             broadcast: true
-        });
+        }));
 
         var passString = "";
         if(serverConfig.password)
@@ -309,11 +309,11 @@ var ircConnect = function(serverConfig) {
     });
     ircServer.on('end', function() {
         console.log(serverConfig.name + ': disconnected from irc, reconnecting...');
-        broadcastMsg(clients, {
+        broadcastMsg(clients, JSON.stringify({
             nick: '!',
             message: serverConfig.name + ': Disconnected from irc, reconnecting...',
             broadcast: true
-        });
+        }));
         setTimeout(function() {
             ircConnect(serverConfig);
         }, config.reconnectDelay);
