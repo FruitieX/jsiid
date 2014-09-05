@@ -1,0 +1,10 @@
+[Unit]
+Description=jsiid
+After=network.target oidentd.socket
+
+[Service]
+ExecStart=/usr/bin/node /path/to/jsiid.js
+ExecReload=/bin/kill -HUP $MAINPID
+
+[Install]
+WantedBy=default.target
