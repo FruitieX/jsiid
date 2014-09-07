@@ -96,6 +96,9 @@ var createListener = function() {
         socket.on("end", function() {
             socket.end();
         });
+        socket.on("error", function(err) {
+            console.log('client socket error: ' + err.code);
+        });
         socket.on("close", function() {
             handleClientDisconnect(socket);
         });
@@ -323,6 +326,14 @@ var ircConnect = function(serverConfig) {
         setTimeout(function() {
             ircConnect(serverConfig);
         }, config.reconnectDelay);
+    });
+    ircServer.on('error', function(err) {
+        console.log(serverConfig.name + ': irc socket error: ' + err.code);
+        broadcastMsg(clients, JSON.stringify({
+            nick: '!',
+            message: serverConfig.name + ': Irc socket error: ' + err.code,
+            broadcast: true
+        }));
     });
 
     ircServer.config = serverConfig;
