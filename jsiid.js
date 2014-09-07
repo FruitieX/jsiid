@@ -62,6 +62,9 @@ var handleClientMessage = function(msg, socket) {
             }
         }
     } else {
+        if(msg.cmd === "message") {
+            broadcastMsg(clients, JSON.stringify(msg));
+        }
         sendIrcMsg(msg, socket);
     }
 };
