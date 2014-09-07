@@ -311,15 +311,7 @@ var ircConnect = function(serverConfig) {
         }
     });
     ircServer.on('end', function() {
-        console.log(serverConfig.name + ': disconnected from irc, reconnecting...');
-        broadcastMsg(clients, JSON.stringify({
-            nick: '!',
-            message: serverConfig.name + ': Disconnected from irc, reconnecting...',
-            broadcast: true
-        }));
-        setTimeout(function() {
-            ircConnect(serverConfig);
-        }, config.reconnectDelay);
+        socket.end();
     });
     ircServer.on('close', function() {
         console.log(serverConfig.name + ': connection to irc closed, reconnecting...');
