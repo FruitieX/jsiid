@@ -257,6 +257,8 @@ var handleIrcLine = function(line, server, ircServer) {
         } else if (cmd === "001") {
             server.serverLongName = prefix;
             console.log("serverLongName changed to " + server.serverLongName);
+        } else if (cmd === "PONG") {
+            console.log("got PONG from " + server.address);
         } else {
             console.log("got unknown msg from " + nick + ": " + line);
         }
@@ -265,7 +267,7 @@ var handleIrcLine = function(line, server, ircServer) {
     }
 };
 
-var ircConnect = function(serverConfig) {
+var ircConnect = function(serverConfig, oldReconnectTimer) {
     var buffer = "";
 
     var ircServer = net.connect({
@@ -278,6 +280,7 @@ var ircConnect = function(serverConfig) {
             message: serverConfig.name + ': Connected to IRC.',
             broadcast: true
         }));
+        clearInterval(oldReconnectTimer);
 
         var passString = "";
         if(serverConfig.password)
@@ -289,6 +292,7 @@ var ircConnect = function(serverConfig) {
                      "localhost " + serverConfig.address + " :" +
                      (serverConfig.nick || config.nick) + "\r\n");
 
+        ircServer.resetTimeouts();
     });
 
     ircServer.send = function(data) {
@@ -297,6 +301,8 @@ var ircConnect = function(serverConfig) {
     };
 
     ircServer.on('data', function(data) {
+        ircServer.resetTimeouts();
+
         buffer += data.toString('utf8');
         var lastNL = buffer.lastIndexOf('\n');
 
@@ -313,32 +319,60 @@ var ircConnect = function(serverConfig) {
             }
         }
     });
+
+    ircServer.reconnect = function(msg) {
+        // cleanup
+        clearTimeout(ircServer.pingTimer);
+        clearTimeout(ircServer.timeoutTimer);
+        ircServer.removeAllListeners('end');
+        ircServer.removeAllListeners('close');
+        ircServer.removeAllListeners('error');
+
+        ircServer.destroy();
+
+        // logging
+        console.log(msg);
+        broadcastMsg(clients, JSON.stringify({
+            nick: '!',
+            message: msg,
+            broadcast: true
+        }));
+
+        // delay reconnect by config.reconnectDelay ms
+        clearInterval(ircServer.reconnectTimer);
+        ircServer.reconnectTimer = setInterval(function() {
+            console.log(serverConfig.name + ': reconnecting...');
+            ircConnect(serverConfig, ircServer.reconnectTimer);
+        }, config.reconnectDelay);
+    };
+
     ircServer.on('end', function() {
-        console.log(serverConfig.name + ': connection to irc ended, reconnecting...');
-        socket.end();
+        ircServer.reconnect(serverConfig.name + ': connection to irc ended.');
     });
     ircServer.on('close', function() {
-        console.log(serverConfig.name + ': connection to irc closed, reconnecting...');
-        broadcastMsg(clients, JSON.stringify({
-            nick: '!',
-            message: serverConfig.name + ': Connection to irc closed, reconnecting...',
-            broadcast: true
-        }));
-        setTimeout(function() {
-            ircConnect(serverConfig);
-        }, config.reconnectDelay);
+        ircServer.reconnect(serverConfig.name + ': connection to irc closed.');
     });
     ircServer.on('error', function(err) {
-        console.log(serverConfig.name + ': irc socket error: ' + err.code);
-        broadcastMsg(clients, JSON.stringify({
-            nick: '!',
-            message: serverConfig.name + ': Irc socket error: ' + err.code,
-            broadcast: true
-        }));
+        ircServer.reconnect(serverConfig.name + ': irc socket error: ' + err.code);
     });
 
-    ircServer.config = serverConfig;
+    // call whenever irc server sends data to postpone timeout timers
+    ircServer.resetTimeouts = function() {
+        // connection timeout after config.timeoutDelay of inactivity
+        clearTimeout(ircServer.timeoutTimer);
+        ircServer.timeoutTimer = setTimeout(function() {
+            ircServer.destroy();
+            ircServer.reconnect(serverConfig.name + ': connection to irc timed out.');
+        }, config.timeoutDelay);
 
+        // ping the server after config.pingDelay of inactivity
+        clearTimeout(ircServer.pingTimer);
+        ircServer.pingTimer = setTimeout(function() {
+            ircServer.send('PING ' + ircServer.config.address);
+        }, config.pingDelay);
+    };
+
+    ircServer.config = serverConfig;
     ircServers[serverConfig.name] = ircServer;
 };
 

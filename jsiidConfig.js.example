@@ -8,8 +8,14 @@ config.nick = "replaceme";
 // how many lines to remember in each channel
 config.backlog = 100;
 
-// time between reconnect attempts
+// how long a irc server reconnect is delayed with
 config.reconnectDelay = 5000;
+
+// time it takes for a irc server connection to timeout
+config.timeoutDelay = 15000;
+
+// time between PING messages to irc server, must be lower than timeoutDelay
+config.pingDelay = 10000;
 
 // which address /port to listen on. comment out addr to listen on INADDR_ANY
 config.listenAddr = "127.0.0.1";
