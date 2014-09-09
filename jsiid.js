@@ -62,9 +62,6 @@ var handleClientMessage = function(msg, socket) {
             }
         }
     } else {
-        if(msg.cmd === "message") {
-            broadcastMsg(clients, JSON.stringify(msg));
-        }
         sendIrcMsg(msg, socket);
     }
 };
@@ -154,14 +151,23 @@ var sendIrcMsg = function(msg, client) {
             broadcastMsg([client], JSON.stringify({"error": "Invalid recepient."}))
         } else if(!msg.message) {
             broadcastMsg([client], JSON.stringify({"error": "No message provided."}))
-        } else if (msg.message[0] !== '/') {
+        } else if (msg.cmd === 'command') {
+            ircServer.send(msg.message);
+        } else if (msg.cmd === 'action') {
             initChan(msg.server, msg.chan, true);
 
             // add message to our backlog and send it
+            broadcastMsg(clients, JSON.stringify(msg));
+            recvdIrcMsg(msg.server, 'action', msg.chan, msg.nick, msg.message, true);
+
+            ircServer.send('PRIVMSG ' + msg.chan + ' :\001ACTION ' + msg.message);
+        } else {
+            initChan(msg.server, msg.chan, true);
+
+            // add message to our backlog and send it
+            broadcastMsg(clients, JSON.stringify(msg));
             recvdIrcMsg(msg.server, "message", msg.chan, msg.nick, msg.message, true);
             ircServer.send('PRIVMSG ' + msg.chan + ' :' + msg.message);
-        } else {
-            ircServer.send(msg.message.substr(1));
         }
     }
 };
@@ -234,7 +240,12 @@ var handleIrcLine = function(line, server, ircServer) {
             }
 
             initChan(server.name, chan, true);
-            recvdIrcMsg(server.name, "message", chan, nick, msg);
+
+            if(msg.substr(0, 8) === '\001ACTION ') {
+                recvdIrcMsg(server.name, "action", chan, nick, msg.substr(8));
+            } else {
+                recvdIrcMsg(server.name, "message", chan, nick, msg);
+            }
         } else if (cmd === "JOIN") {
             initChan(server.name, chan, true);
             if(nick !== (server.nick || config.myNick)) {
