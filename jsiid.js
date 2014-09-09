@@ -274,12 +274,16 @@ var ircConnect = function(serverConfig, oldReconnectTimer) {
         "port": serverConfig.port,
         "host": serverConfig.address
     }, function() {
+        // logging
         console.log('connected to irc server');
-        broadcastMsg(clients, JSON.stringify({
+        var msg = {
             nick: '!',
             message: serverConfig.name + ': Connected to IRC.',
             broadcast: true
-        }));
+        };
+
+        broadcastMsg(clients, JSON.stringify(msg));
+
         clearInterval(oldReconnectTimer);
 
         var passString = "";
@@ -320,10 +324,12 @@ var ircConnect = function(serverConfig, oldReconnectTimer) {
         }
     });
 
-    ircServer.reconnect = function(msg) {
+    ircServer.reconnect = function(message) {
         // cleanup
         clearTimeout(ircServer.pingTimer);
         clearTimeout(ircServer.timeoutTimer);
+        clearInterval(oldReconnectTimer);
+        clearInterval(ircServer.reconnectTimer);
         ircServer.removeAllListeners('end');
         ircServer.removeAllListeners('close');
         ircServer.removeAllListeners('error');
@@ -331,15 +337,16 @@ var ircConnect = function(serverConfig, oldReconnectTimer) {
         ircServer.destroy();
 
         // logging
-        console.log(msg);
-        broadcastMsg(clients, JSON.stringify({
+        console.log(message);
+        var msg = {
             nick: '!',
-            message: msg,
+            message: message,
             broadcast: true
-        }));
+        };
+
+        broadcastMsg(clients, JSON.stringify(msg));
 
         // delay reconnect by config.reconnectDelay ms
-        clearInterval(ircServer.reconnectTimer);
         ircServer.reconnectTimer = setInterval(function() {
             console.log(serverConfig.name + ': reconnecting...');
             ircConnect(serverConfig, ircServer.reconnectTimer);
@@ -378,8 +385,16 @@ var ircConnect = function(serverConfig, oldReconnectTimer) {
 
 createListener();
 
-for(var i = 0; i < config.servers.length; i++)
-    ircConnect(config.servers[i]);
+for(var i = 0; i < config.servers.length; i++) {
+    (function(i) {
+        var timer = setInterval(function() {
+            console.log(config.servers[i].name + ': reconnecting...');
+            ircConnect(config.servers[i], timer);
+        }, config.reconnectDelay);
+
+        ircConnect(config.servers[i], timer);
+    })(i);
+}
 
 process.on('uncaughtException', function (err) {
     console.error(err.stack);
