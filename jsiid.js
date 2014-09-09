@@ -284,8 +284,6 @@ var ircConnect = function(serverConfig, oldReconnectTimer) {
 
         broadcastMsg(clients, JSON.stringify(msg));
 
-        clearInterval(oldReconnectTimer);
-
         var passString = "";
         if(serverConfig.password)
             passString = "PASS " + serverConfig.password + "\r\n";
@@ -296,7 +294,7 @@ var ircConnect = function(serverConfig, oldReconnectTimer) {
                      "localhost " + serverConfig.address + " :" +
                      (serverConfig.nick || config.nick) + "\r\n");
 
-        ircServer.resetTimeouts();
+        ircServer.resetPingTimer();
     });
 
     ircServer.send = function(data) {
@@ -305,7 +303,7 @@ var ircConnect = function(serverConfig, oldReconnectTimer) {
     };
 
     ircServer.on('data', function(data) {
-        ircServer.resetTimeouts();
+        ircServer.resetPingTimer();
 
         buffer += data.toString('utf8');
         var lastNL = buffer.lastIndexOf('\n');
@@ -327,9 +325,6 @@ var ircConnect = function(serverConfig, oldReconnectTimer) {
     ircServer.reconnect = function(message) {
         // cleanup
         clearTimeout(ircServer.pingTimer);
-        clearTimeout(ircServer.timeoutTimer);
-        clearInterval(oldReconnectTimer);
-        clearInterval(ircServer.reconnectTimer);
         ircServer.removeAllListeners('end');
         ircServer.removeAllListeners('close');
         ircServer.removeAllListeners('error');
@@ -347,9 +342,9 @@ var ircConnect = function(serverConfig, oldReconnectTimer) {
         broadcastMsg(clients, JSON.stringify(msg));
 
         // delay reconnect by config.reconnectDelay ms
-        ircServer.reconnectTimer = setInterval(function() {
+        ircServer.reconnectTimer = setTimeout(function() {
             console.log(serverConfig.name + ': reconnecting...');
-            ircConnect(serverConfig, ircServer.reconnectTimer);
+            ircConnect(serverConfig);
         }, config.reconnectDelay);
     };
 
@@ -364,20 +359,17 @@ var ircConnect = function(serverConfig, oldReconnectTimer) {
     });
 
     // call whenever irc server sends data to postpone timeout timers
-    ircServer.resetTimeouts = function() {
-        // connection timeout after config.timeoutDelay of inactivity
-        clearTimeout(ircServer.timeoutTimer);
-        ircServer.timeoutTimer = setTimeout(function() {
-            ircServer.destroy();
-            ircServer.reconnect(serverConfig.name + ': connection to irc timed out.');
-        }, config.timeoutDelay);
-
+    ircServer.resetPingTimer = function() {
         // ping the server after config.pingDelay of inactivity
         clearTimeout(ircServer.pingTimer);
         ircServer.pingTimer = setTimeout(function() {
             ircServer.send('PING ' + ircServer.config.address);
         }, config.pingDelay);
     };
+
+    ircServer.setTimeout(config.timeoutDelay, function() {
+        ircServer.reconnect(serverConfig.name + ': connection to irc timed out.');
+    });
 
     ircServer.config = serverConfig;
     ircServers[serverConfig.name] = ircServer;
@@ -386,17 +378,5 @@ var ircConnect = function(serverConfig, oldReconnectTimer) {
 createListener();
 
 for(var i = 0; i < config.servers.length; i++) {
-    (function(i) {
-        var timer = setInterval(function() {
-            console.log(config.servers[i].name + ': reconnecting...');
-            ircConnect(config.servers[i], timer);
-        }, config.reconnectDelay);
-
-        ircConnect(config.servers[i], timer);
-    })(i);
+    ircConnect(config.servers[i]);
 }
-
-process.on('uncaughtException', function (err) {
-    console.error(err.stack);
-    console.log("ERROR! Node not exiting.");
-});
