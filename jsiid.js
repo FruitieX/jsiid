@@ -314,6 +314,7 @@ var ircConnect = function(serverConfig) {
         }
     });
     ircServer.on('end', function() {
+        console.log(serverConfig.name + ': connection to irc ended, reconnecting...');
         socket.end();
     });
     ircServer.on('close', function() {
@@ -337,8 +338,6 @@ var ircConnect = function(serverConfig) {
     });
 
     ircServer.config = serverConfig;
-    ircServer.chanNamesRequests = [];
-    ircServer.namesRequestTimeout = null;
 
     ircServers[serverConfig.name] = ircServer;
 };
