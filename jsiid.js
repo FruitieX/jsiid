@@ -145,15 +145,17 @@ var recvdIrcMsg = function(serverName, cmd, chan, nick, msgString, noBroadcast) 
 var sendIrcMsg = function(msg, client) {
     var ircServer = ircServers[msg.server];
     if(!ircServer)
-        broadcastMsg([client], JSON.stringify({"error": "Server not found."}))
+        broadcastMsg([client], JSON.stringify({"error": "Server not found."}));
     else {
-        if(!msg.chan) {
-            broadcastMsg([client], JSON.stringify({"error": "Invalid recepient."}))
-        } else if(!msg.message) {
-            broadcastMsg([client], JSON.stringify({"error": "No message provided."}))
+        if(!msg.message) {
+            broadcastMsg([client], JSON.stringify({"error": "No message provided."}));
         } else if (msg.cmd === 'command') {
             ircServer.send(msg.message);
         } else if (msg.cmd === 'action') {
+            if(!msg.chan)  {
+                broadcastMsg([client], JSON.stringify({"error": "Invalid recepient."}));
+                return;
+            }
             initChan(msg.server, msg.chan, true);
 
             // add message to our backlog and send it
@@ -162,6 +164,10 @@ var sendIrcMsg = function(msg, client) {
 
             ircServer.send('PRIVMSG ' + msg.chan + ' :\001ACTION ' + msg.message);
         } else {
+            if(!msg.chan)  {
+                broadcastMsg([client], JSON.stringify({"error": "Invalid recepient."}));
+                return;
+            }
             initChan(msg.server, msg.chan, true);
 
             // add message to our backlog and send it
