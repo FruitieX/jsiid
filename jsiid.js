@@ -241,7 +241,7 @@ var handleIrcLine = function(line, server, ircServer) {
             var msg = tokens.join(' ').substr(1);
 
             // query message
-            if(chan === config.nick) {
+            if(chan === (server.nick || config.nick)) {
                 chan = nick;
             }
 
@@ -254,7 +254,7 @@ var handleIrcLine = function(line, server, ircServer) {
             }
         } else if (cmd === "JOIN") {
             initChan(server.name, chan, true);
-            if(nick !== (server.nick || config.myNick)) {
+            if(nick !== (server.nick || config.nick)) {
                 recvdIrcMsg(server.name, "join", chan, nick, null);
                 ircChans[chanLongName].nicks[nick] = true;
             }
