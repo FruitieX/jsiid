@@ -67,17 +67,17 @@ var handleClientMessage = function(msg, socket) {
 };
 
 var handleClientDisconnect = function(socket) {
-    console.log("client disconnected.");
+    //console.log("client disconnected.");
     clients.splice(clients.indexOf(socket), 1);
 };
 
 var createListener = function() {
     var listener = net.createServer(function (socket) {
-        console.log("client connected.");
+        //console.log("client connected.");
         var buffer = "";
 
         socket.on("data", function(data) {
-            console.log("got client data:" + data);
+            //console.log("got client data:" + data);
             buffer += data.toString('utf8');
             var lastNL = buffer.lastIndexOf('\n');
             if(lastNL !== -1) {
@@ -94,7 +94,7 @@ var createListener = function() {
             socket.end();
         });
         socket.on("error", function(err) {
-            console.log('client socket error: ' + err.code);
+            //console.log('client socket error: ' + err.code);
         });
         socket.on("close", function() {
             handleClientDisconnect(socket);
@@ -114,7 +114,7 @@ var broadcastMsg = function(clients, msg) {
     for(var i = 0; i < clients.length; i++) {
         clients[i].write(msg + '\n');
     }
-    console.log("broadcastMsg(): " + msg);
+    //console.log("broadcastMsg(): " + msg);
 };
 
 var ircChans = {};
@@ -195,7 +195,7 @@ var handleIrcLine = function(line, server, ircServer) {
 
     //console.log(server.name + ': ' + line);
     if(tokens[0] === "PING") {
-        console.log('got PING, sending PONG to ' + tokens[1].substr(1));
+        //console.log('got PING, sending PONG to ' + tokens[1].substr(1));
         ircServer.send("PONG " + tokens[1].substr(1));
     } else if (tokens[0][0] === ":") {
         var prefix = tokens[0].substr(1);
@@ -273,14 +273,14 @@ var handleIrcLine = function(line, server, ircServer) {
             }
         } else if (cmd === "001") {
             server.serverLongName = prefix;
-            console.log("serverLongName changed to " + server.serverLongName);
+            //console.log("serverLongName changed to " + server.serverLongName);
         } else if (cmd === "PONG") {
-            console.log("got PONG from " + server.address);
+            //console.log("got PONG from " + server.address);
         } else {
-            console.log("got unknown msg from " + nick + ": " + line);
+            //console.log("got unknown msg from " + nick + ": " + line);
         }
     } else {
-        console.log("got unknown msg on " + server.name + ": " + line);
+        //console.log("got unknown msg on " + server.name + ": " + line);
     }
 };
 
@@ -315,7 +315,7 @@ var ircConnect = function(serverConfig, oldReconnectTimer) {
     });
 
     ircServer.send = function(data) {
-        console.log("sending data to IRC: " + data);
+        //console.log("sending data to IRC: " + data);
         ircServer.write(data + '\r\n');
     };
 
@@ -332,7 +332,7 @@ var ircConnect = function(serverConfig, oldReconnectTimer) {
 
             for(var i = 0; i < recvdLines.length; i++) {
                 if(recvdLines[i] !== '') {
-                    console.log('irc server sent ' + recvdLines[i]);
+                    //console.log('irc server sent ' + recvdLines[i]);
                     handleIrcLine(recvdLines[i], serverConfig, ircServer);
                 }
             }
@@ -349,7 +349,7 @@ var ircConnect = function(serverConfig, oldReconnectTimer) {
         ircServer.destroy();
 
         // logging
-        console.log(message);
+        //console.log(message);
         var msg = {
             nick: '!',
             message: message,
