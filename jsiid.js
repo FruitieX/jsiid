@@ -266,7 +266,7 @@ var handleIrcLine = function(line, server, ircServer) {
             for(var key in ircChans) {
                 for(var chanNick in ircChans[key].nicks) {
                     if(chanNick === nick) {
-                        recvdIrcMsg(server.name, "part", key, nick, null);
+                        recvdIrcMsg(server.name, "part", key.substr(key.indexOf(':') + 1), nick, null);
                         delete(ircChans[key].nicks[nick]);
                     }
                 }
