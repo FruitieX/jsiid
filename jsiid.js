@@ -285,7 +285,7 @@ var handleIrcLine = function(line, server, ircServer) {
     }
 };
 
-var ircConnect = function(serverConfig, oldReconnectTimer) {
+var ircConnect = function(serverConfig) {
     var buffer = "";
 
     var ircServer = net.connect({
