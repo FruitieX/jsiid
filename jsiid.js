@@ -162,7 +162,7 @@ var sendIrcMsg = function(msg, client) {
             broadcastMsg(clients, JSON.stringify(msg));
             recvdIrcMsg(msg.server, 'action', msg.chan, msg.nick, msg.message, true);
 
-            ircServer.send('PRIVMSG ' + msg.chan + ' :\001ACTION ' + msg.message);
+            ircServer.send('PRIVMSG ' + msg.chan + ' :\001ACTION ' + msg.message + "\001");
         } else {
             if(!msg.chan)  {
                 broadcastMsg([client], JSON.stringify({"error": "Invalid recepient."}));
