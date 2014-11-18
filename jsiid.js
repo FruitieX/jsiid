@@ -1,5 +1,7 @@
 var config = require(process.env.HOME + "/.jsiidConfig.js");
 var net = require("net");
+var tls = require("tls");
+var fs = require("fs");
 
 var clients = [];
 
@@ -288,10 +290,16 @@ var handleIrcLine = function(line, server, ircServer) {
 var ircConnect = function(serverConfig) {
     var buffer = "";
 
-    var ircServer = net.connect({
-        "port": serverConfig.port,
-        "host": serverConfig.address
-    }, function() {
+    var options = {
+        port: serverConfig.port,
+        host: serverConfig.address,
+        key: fs.readFileSync(serverConfig.keyPath),
+        cert: fs.readFileSync(serverConfig.certPath),
+        ca: fs.readFileSync(serverConfig.caPath),
+        rejectUnauthorized: serverConfig.rejectUnauthorized
+    };
+
+    var ircServer = tls.connect(options, function() {
         // logging
         console.log('connected to irc server');
         var msg = {

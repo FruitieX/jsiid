@@ -25,20 +25,24 @@ config.listenPort = "6666";
 config.servers = [
     {
         /* connect to oranges.com:1337, password: orangutan, using nick: blah */
-        "name": "oranges",          // required
-        "address": "oranges.com",   // default is localhost
-        "port": 1337,               // default is 6667
-        "password": "orangutan",    // defaults to no pw
-        "nick": "blah"
+        name: "oranges",          // required
+        address: "oranges.com",   // default is localhost
+        port: 1337,               // default is 6667
+        password: "orangutan",    // defaults to no pw
+        nick: "blah",
+        keyPath: process.env.HOME + '/.jsiid-key.pem',
+        certPath: process.env.HOME + '/.jsiid-cert.pem',
+        caPath: process.env.HOME + '/.jsiid-cert.pem',
+        rejectUnauthorized: false
     },
     {
         /* connect to fruits.org:6667, using config.nick by default */
-        "name": "fruits",
-        "address": "fruits.org",
+        name: "fruits",
+        address: "fruits.org",
     },
     {
         /* connect to localhost:6667 */
-        "name": "bitlbee"
+        name: "bitlbee"
     }
 ];
 
