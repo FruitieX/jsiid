@@ -299,29 +299,33 @@ var ircConnect = function(serverConfig) {
         rejectUnauthorized: serverConfig.rejectUnauthorized
     };
 
-    var ircServer = tls.connect(options, function() {
-        // logging
-        console.log('connected to irc server');
-        var msg = {
-            nick: '!',
-            message: serverConfig.name + ': Connected to IRC.',
-            broadcast: true
-        };
+    try {
+        var ircServer = tls.connect(options, function() {
+            // logging
+            console.log('connected to irc server');
+            var msg = {
+                nick: '!',
+                message: serverConfig.name + ': Connected to IRC.',
+                broadcast: true
+            };
 
-        broadcastMsg(clients, JSON.stringify(msg));
+            broadcastMsg(clients, JSON.stringify(msg));
 
-        var passString = "";
-        if(serverConfig.password)
-            passString = "PASS " + serverConfig.password + "\r\n";
+            var passString = "";
+            if(serverConfig.password)
+                passString = "PASS " + serverConfig.password + "\r\n";
 
-        ircServer.write(passString +
-                     "NICK " + (serverConfig.nick || config.nick) + "\r\n" +
-                     "USER " + (serverConfig.nick || config.nick) + " " +
-                     "localhost " + serverConfig.address + " :" +
-                     (serverConfig.nick || config.nick) + "\r\n");
+            ircServer.write(passString +
+                         "NICK " + (serverConfig.nick || config.nick) + "\r\n" +
+                         "USER " + (serverConfig.nick || config.nick) + " " +
+                         "localhost " + serverConfig.address + " :" +
+                         (serverConfig.nick || config.nick) + "\r\n");
 
-        ircServer.resetPingTimer();
-    });
+            ircServer.resetPingTimer();
+        });
+    } catch(e) {
+        ircServer.reconnect(e);
+    }
 
     ircServer.send = function(data) {
         //console.log("sending data to IRC: " + data);
